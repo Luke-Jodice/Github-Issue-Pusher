@@ -1,8 +1,15 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { serveStatic } from '@hono/node-server/serve-static';
 
 const app = new Hono();
 const port = 3000;
+// Add this before your routes
+app.use('/feedback/*', cors({
+  origin: '*', // or specify 'http://localhost:YOUR_PORT' for tighter security
+  allowMethods: ['POST', 'OPTIONS'],
+  allowHeaders: ['Content-Type'],
+}))
 
 // Serve static files from the current directory
 app.use('/*', serveStatic({ root: './' }));

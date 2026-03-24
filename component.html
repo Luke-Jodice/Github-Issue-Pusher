@@ -1,0 +1,189 @@
+
+<html>
+<body>
+    <button
+    type="button"
+    class="btn-footer"
+    id="openFeedbackBtn"
+    aria-haspopup="dialog"
+    aria-controls="feedbackModal"
+  >
+    See a Bug?
+  </button>
+    <div class="modal-backdrop" id="feedbackModalBackdrop" aria-hidden="true">
+        <div
+          class="modal"
+          id="feedbackModal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="feedbackModalTitle"
+          tabindex="-1"
+        >
+          <div class="modal-header">
+            <h2 id="feedbackModalTitle">Feedback/Bug Report</h2>
+            <button
+              type="button"
+              class="modal-close"
+              id="closeFeedbackBtn"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </div>
+          <form class="modal-form" id="feedbackForm">
+            <div>
+              <label for="feedbackTitle">Title</label>
+              <input
+                type="text"
+                id="feedbackTitle"
+                name="title"
+                required
+                autocomplete="off"
+                placeholder="Short summary"
+              />
+            </div>
+            <div>
+              <label for="feedbackDescription">Description</label>
+              <textarea
+                id="feedbackDescription"
+                name="description"
+                required
+                placeholder="Details…"
+              ></textarea>
+            </div>
+            <div>
+              <label for="feedbackOption">Type</label>
+              <select id="feedbackOption" name="option" required>
+                <option value="" disabled selected>Choose…</option>
+                <option value="Feedback">Feedback</option>
+                <option value="Product-Defect">Product Defect</option>
+              </select>
+            </div>
+            <div>
+              <label for="feedbackEmail">Email</label>
+              <input
+                type="text"
+                id="feedbackEmail"
+                name="Email"
+                required
+                autocomplete="off"
+                placeholder="email address"
+              />
+            <p class="modal-status" id="feedbackStatus" role="status"></p>
+            <button type="submit" class="btn btn-submit" id="feedbackSubmitBtn">
+              Submit
+            </button>
+          </form>
+        </div>
+      </div>
+
+<script>
+function showLoading(show) {
+    document.getElementById("loading").style.display = show
+      ? "block"
+      : "none";
+  }
+  function hideResults() {
+    document.getElementById("results").style.display = "none";
+  }
+  function showError(msg) {
+    const error = document.getElementById("error");
+    error.textContent = msg;
+    error.style.display = "block";
+  }
+  function hideError() {
+    document.getElementById("error").style.display = "none";
+  }
+
+  /** Redirects to GitHub New Issue page with pre-filled fields */
+
+  (function initFeedbackModal() {
+    const backdrop = document.getElementById("feedbackModalBackdrop");
+    const modal = document.getElementById("feedbackModal");
+    const openBtn = document.getElementById("openFeedbackBtn");
+    const closeBtn = document.getElementById("closeFeedbackBtn");
+    const form = document.getElementById("feedbackForm");
+    const statusEl = document.getElementById("feedbackStatus");
+    const submitBtn = document.getElementById("feedbackSubmitBtn");
+    let lastFocus = null;
+
+    function openModal() {
+      lastFocus = document.activeElement;
+      backdrop.classList.add("is-open");
+      backdrop.setAttribute("aria-hidden", "false");
+      modal.focus();
+    }
+
+    function closeModal() {
+      backdrop.classList.remove("is-open");
+      backdrop.setAttribute("aria-hidden", "true");
+      statusEl.textContent = "";
+      statusEl.className = "modal-status";
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    openBtn.addEventListener("click", openModal);
+    closeBtn.addEventListener("click", closeModal);
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) closeModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && backdrop.classList.contains("is-open"))
+        closeModal();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      statusEl.textContent = "Submitting...";
+      statusEl.className = "modal-status";
+      
+      const title = document.getElementById("feedbackTitle").value.trim();
+      const type = document.getElementById("feedbackOption").value;
+      const typearray = [];
+      typearray.push(type);
+      const description = document.getElementById("feedbackDescription").value.trim();
+      const email = document.getElementById("feedbackEmail").value.trim();
+      
+      const payload = {
+        title: title,
+        body: `**Type:** ${type}\n\n**From**\n${email}\n\n**Description:**\n${description}`,
+        labels: typearray
+      };
+
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        // Handle non-JSON responses (like 404 HTML pages)
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await res.text();
+          console.error("Non-JSON Response:", text);
+          throw new Error("Backend not active. Please ensure /api/feedback.js is deployed and environment variables are set.");
+        }
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Server Error: ${res.status}`);
+
+        statusEl.textContent = "Thank you! Your report has been submitted.";
+        statusEl.className = "modal-status ok";
+        
+        form.reset();
+        setTimeout(closeModal, 2500);
+      } catch (err) {
+        console.error("Feedback Submission Error:", err);
+        statusEl.textContent = err.message;
+        statusEl.className = "modal-status err";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  })();
+</script>
+</body>
+</html>
